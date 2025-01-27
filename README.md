@@ -1,16 +1,16 @@
 # Functions Framework for Go
 
-[![GoDoc](https://godoc.org/github.com/GoogleCloudPlatform/functions-framework-go?status.svg)](http://godoc.org/github.com/GoogleCloudPlatform/functions-framework-go) [![Go version](https://img.shields.io/badge/go-v1.11+-blue)](https://golang.org/dl/#stable)
+[![GoDoc](https://godoc.org/github.com/GoogleCloudPlatform/functions-framework-go?status.svg)](http://godoc.org/github.com/GoogleCloudPlatform/functions-framework-go) [![Go version](https://img.shields.io/badge/go-v1.18+-blue)](https://golang.org/dl/#stable)
 
 [![Go unit CI][ff_go_unit_img]][ff_go_unit_link] [![Go lint CI][ff_go_lint_img]][ff_go_lint_link] [![Go conformace CI][ff_go_conformance_img]][ff_go_conformance_link]  ![Security Scorecard](https://api.securityscorecards.dev/projects/github.com/GoogleCloudPlatform/functions-framework-go/badge)
 
 An open source FaaS (Function as a Service) framework for writing portable
-Go functions, brought to you by the Google Cloud Functions team.
+Go functions.
 
 The Functions Framework lets you write lightweight functions that run in many
 different environments, including:
 
-*   [Google Cloud Functions](https://cloud.google.com/functions/)
+*   [Google Cloud Run functions](https://cloud.google.com/functions/)
 *   Your local development machine
 *   [Knative](https://github.com/knative/)-based environments
 *   [Google App Engine](https://cloud.google.com/appengine/docs/go/)
@@ -36,7 +36,7 @@ handling logic.
 
 ## Features
 
-*   Build your Function in the same container environment used by Cloud Functions using [buildpacks](https://github.com/GoogleCloudPlatform/buildpacks).
+*   Build your Function in the same container environment used by Cloud Run functions using [buildpacks](https://github.com/GoogleCloudPlatform/buildpacks).
 *   Invoke a function in response to a request
 *   Automatically unmarshal events conforming to the
     [CloudEvents](https://cloudevents.io/) spec
@@ -44,7 +44,7 @@ handling logic.
 
 ## Quickstart: Hello, World on your local machine
 
-1. Install Go 1.11+.
+1. Install Go 1.18+.
 
 1. Create a Go module:
 	```sh
@@ -133,6 +133,57 @@ handling logic.
 	curl localhost:8080
 	# Output: Hello, World!
 	```
+## Quickstart: Enable Exeuction Id Logging
+
+[Cloud Run Functions(1st gen)](https://cloud.google.com/functions/1stgendocs/deploy) provides an execution id in the logs at `labels.execution_id`, which customers can use to filter their logs for each execution. [Cloud Run Functions](https://cloud.google.com/functions/docs/deploy) doesn't have the same feature embedded. 
+
+To have exeuction id logged for `Cloud Run Functions` executions, users can either:
+
+* Provide a custom execution Id in the Http Header `Function-Execution-Id`.
+
+	```sh
+		curl -H "Function-Execution-Id: 123456" localhost:8080
+		# Output: Hello, World!
+	```
+
+	Example Log:
+	```
+	{"message":"Try logging with executionID!","logging.googleapis.com/labels":{"execution_id":"123456"}}
+	```
+
+
+OR 
+* Leverage `LogWriter` provided in function-framework-go(v1.9.0 or higher) library to generate logs. If `Function-Exeuction-Id` is empty, a pseduorandom execution id will be auto-generated if `LogWriter` is used.  
+
+	```golang
+	package function
+
+	import (
+		"fmt"
+		"net/http"
+		"log"
+		"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+		"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
+	)
+
+	func init() {
+		functions.HTTP("HelloWorld", helloWorld)
+	}
+
+	// helloWorld writes "Hello, World!" to the HTTP response.
+	func helloWorld(w http.ResponseWriter, r *http.Request) {
+		l := log.New(funcframework.LogWriter(r.Context()), "", 0)
+
+		l.Println("Try logging with executionID!")
+		fmt.Fprintln(w, "Hello, World!")
+	}
+	```
+
+	Example Log:
+	```
+	{"message":"Try logging with executionID!","logging.googleapis.com/labels":{"execution_id":"181dbb5b096549313d470dd68fa64d96"}}
+	```
+
 
 ## Go further: build a deployable container
 
@@ -161,7 +212,7 @@ handling logic.
 
 ## Run your function on serverless platforms
 
-### Google Cloud Functions
+### Google Cloud Run functions
 
 Deploy from your local machine using the `gcloud` command-line tool.
 [Check out the Cloud Functions quickstart](https://cloud.google.com/functions/docs/quickstart).
